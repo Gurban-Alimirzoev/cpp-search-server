@@ -27,53 +27,58 @@ void TestMinusWord()
     const vector<int> ratings = {1, 2, 3};
 
     SearchServer server;
-
     server.AddDocument(doc_id, contentMinus, DocumentStatus::ACTUAL, ratings);
     ASSERT_EQUAL(server.FindTopDocuments("cat"s).empty(), false);
-    server.SetStopWords("cat"s);
-    ASSERT_HINT(server.FindTopDocuments("cat"s).empty(), "Documents with minus words must be excluded in search results");
+    ASSERT_HINT(server.FindTopDocuments("dog -cat"s).empty(), "Documents with minus words must be excluded in search results");
 }
 
 void TestMatchedDoc()
 {
-    const int doc_id = 42;
-    const string contentMinus = "cat"s;
-    const string contentPlus = "dog"s;
-    const string contentPlusWithMinus = "cat dog"s;
+    const int doc_id_one = 1;
+    const string contentPlusWithMinus = "cat dog good bad"s;
     const vector<int> ratings = {1, 2, 3};
 
     SearchServer server;
-
-    server.SetStopWords("cat"s);
-    server.AddDocument(doc_id, contentMinus, DocumentStatus::ACTUAL, ratings);
-    server.AddDocument(doc_id, contentPlusWithMinus, DocumentStatus::ACTUAL, ratings);
-    server.AddDocument(doc_id, contentPlus, DocumentStatus::ACTUAL, ratings);
+    //server.SetStopWords("cat dog"s);
+    server.AddDocument(doc_id_one, contentPlusWithMinus, DocumentStatus::ACTUAL, ratings);
     string message = "Documents do not match the search query";
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat"s).size(), 0u, message);
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat dog"s).size(), 1u, message);
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("dog"s).size(), 1u, message);
+
+    vector<string> vectorPlusWordInMatchDoc, vectorMinusWordInMatchDoc;
+    DocumentStatus TestDocumentStatus;
+    tie(vectorPlusWordInMatchDoc, TestDocumentStatus) = server.MatchDocument("cat dog good", doc_id_one);
+    tie(vectorMinusWordInMatchDoc, TestDocumentStatus) = server.MatchDocument("-cat dog good bad", doc_id_one);
+    vector<string> testVector = {"cat", "dog", "good"};
+    ASSERT_EQUAL_HINT(vectorPlusWordInMatchDoc, testVector, message);
+    ASSERT_EQUAL_HINT(vectorMinusWordInMatchDoc.size(), 0u, message);
 }
 
 void TestRaitingCompute()
 {
-
     const string contentMinus = "cat dog bad"s;
     const vector<int> ratings = {1, 2, 3};
-    const vector<int> zero = {0};
-    const vector<int> one = {1, 1, 1};
+    const vector<int> zero = {1, 1, 1};
+    const vector<int> one = {0};
+    const int doc_id_one = 1;
+    const int doc_id_two = 5;
+    const int doc_id_tr = 9;
 
     SearchServer server;
-
-    server.AddDocument(1, contentMinus, DocumentStatus::ACTUAL, ratings);
-    server.AddDocument(5, contentMinus, DocumentStatus::ACTUAL, zero);
-    server.AddDocument(9, contentMinus, DocumentStatus::ACTUAL, one);
+    server.AddDocument(doc_id_one, contentMinus, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_two, contentMinus, DocumentStatus::ACTUAL, zero);
+    server.AddDocument(doc_id_tr, contentMinus, DocumentStatus::ACTUAL, one);
     string message = "Rating is incorrect";
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat dog bad")[0].rating, 2, message);
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat dog")[1].rating, 1, message);
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat")[2].rating, 0, message);
+    vector<Document> test = server.FindTopDocuments(contentMinus);
+    ASSERT_EQUAL(test[0].id, doc_id_one);
+    ASSERT_EQUAL_HINT(test[0].rating, 2, message);
+
+    ASSERT_EQUAL(test[1].id, doc_id_two);
+    ASSERT_EQUAL_HINT(test[1].rating, 1, message);
+
+    ASSERT_EQUAL(test[2].id, doc_id_tr);
+    ASSERT_EQUAL_HINT(test[2].rating, 0, message);
 }
 
-void TestSortRelev()
+void TestRelevAndTestSort()
 {
     const int doc_id_one = 1;
     const int doc_id_two = 2;
@@ -82,27 +87,115 @@ void TestSortRelev()
     const string contentOne = "cat dog bad good"s;
     const string contentTwo = "cat"s;
     const string contentThree = "dog bad cat"s;
-    const string contentFore = "bad good"s;
     const vector<int> ratings = {1, 2, 3};
+    const vector<int> ratingsForSort = {1};
 
     SearchServer server;
-
     server.AddDocument(doc_id_one, contentOne, DocumentStatus::ACTUAL, ratings);
     server.AddDocument(doc_id_two, contentTwo, DocumentStatus::ACTUAL, ratings);
     server.AddDocument(doc_id_tr, contentThree, DocumentStatus::ACTUAL, ratings);
-    server.AddDocument(doc_id_for, contentFore, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_for, contentOne, DocumentStatus::ACTUAL, ratingsForSort);
+
     string message = "Documents are sorted incorrectly";
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat dog")[0].id, 3, message);
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat dog")[1].id, 2, message);
-    ASSERT_EQUAL_HINT(server.FindTopDocuments("cat dog")[2].id, 1, message);
+    vector<Document> test = server.FindTopDocuments("cat dog");
+    ASSERT_EQUAL(test[0].id, 3);
+    ASSERT_EQUAL_HINT(test[0].relevance, 0.095894024150593615, message);
+
+    ASSERT_EQUAL(test[1].id, 1);
+    ASSERT_EQUAL_HINT(test[1].relevance, 0.071920518112945211, message);
+
+    ASSERT_EQUAL(test[2].id, 4);
+    ASSERT_EQUAL_HINT(test[2].relevance, 0.071920518112945211, message);
+    ASSERT_EQUAL_HINT(test[2].rating, 1, message);
+
+    ASSERT_EQUAL(test[3].id, 2);
+    ASSERT_EQUAL_HINT(test[3].relevance, 0, message);
+    ASSERT_EQUAL_HINT(test[3].rating, 2, message);
 }
 
-// Функция TestSearchServer является точкой входа для запуска тестов
+void TestSearchWithDocStatus()
+{
+    const int doc_id_one = 1;
+    const int doc_id_two = 2;
+    const int doc_id_tr = 3;
+    const int doc_id_for = 4;
+    const string contentOne = "cat dog bad good"s;
+    const string contentTwo = "cat god"s;
+    const string contentThree = "dog bad cat"s;
+    const string contentFore = "dog bad cat god"s;
+    const string testContent = "cat";
+    const vector<int> ratings = {1, 2, 3};
+
+    SearchServer server;
+    server.AddDocument(doc_id_one, contentOne, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_two, contentTwo, DocumentStatus::BANNED, ratings);
+    server.AddDocument(doc_id_tr, contentThree, DocumentStatus::IRRELEVANT, ratings);
+    server.AddDocument(doc_id_for, contentFore, DocumentStatus::REMOVED, ratings);
+
+    string message = "Documents search incorrectly";
+    vector<Document> testActual = server.FindTopDocuments(testContent, DocumentStatus::ACTUAL);
+    ASSERT_EQUAL(testActual.size(), 1u);
+    ASSERT_EQUAL_HINT(testActual[0].id, doc_id_one, message);
+
+    vector<Document> testBanned = server.FindTopDocuments(testContent, DocumentStatus::BANNED);
+    ASSERT_EQUAL(testBanned.size(), 1u);
+    ASSERT_EQUAL_HINT(testBanned[0].id, doc_id_two, message);
+
+    vector<Document> testIrrelevant = server.FindTopDocuments(testContent, DocumentStatus::IRRELEVANT);
+    ASSERT_EQUAL(testIrrelevant.size(), 1u);
+    ASSERT_EQUAL_HINT(testIrrelevant[0].id, doc_id_tr, message);
+
+    vector<Document> testRemoved = server.FindTopDocuments(testContent, DocumentStatus::REMOVED);
+    ASSERT_EQUAL(testRemoved.size(), 1u);
+    ASSERT_EQUAL_HINT(testRemoved[0].id, doc_id_for, message);
+}
+
+void TestFilterWithPred()
+{
+    const int doc_id_one = 1;
+    const int doc_id_two = 2;
+    const int doc_id_tr = 3;
+    const int doc_id_for = 4;
+    const string contentOne = "cat dog bad good"s;
+    const string contentTwo = "cat"s;
+    const string contentThree = "dog bad cat"s;
+    const string contentFore = "dog cat"s;
+    const int ratingOne = 1;
+    const int ratingTwo = 2;
+    const vector<int> ratingsOne = {ratingOne};
+    const vector<int> ratingsTwo = {ratingTwo};
+
+    SearchServer server;
+    server.AddDocument(doc_id_one, contentOne, DocumentStatus::ACTUAL, ratingsOne);
+    server.AddDocument(doc_id_two, contentTwo, DocumentStatus::BANNED, ratingsTwo);
+    server.AddDocument(doc_id_tr, contentThree, DocumentStatus::IRRELEVANT, ratingsOne);
+    server.AddDocument(doc_id_for, contentFore, DocumentStatus::REMOVED, ratingsTwo);
+    string message = "Predicat filter worked incorrectly";
+
+    vector<Document> testStatus = server.FindTopDocuments(contentTwo, [](int document_id, DocumentStatus status, int rating)
+                                                          { return status == DocumentStatus::ACTUAL; });
+    ASSERT_EQUAL(testStatus.size(), 1u);
+    ASSERT_EQUAL_HINT(testStatus[0].id, doc_id_one, message);
+
+    vector<Document> testRating = server.FindTopDocuments(contentTwo, [](int document_id, DocumentStatus status, int rating)
+                                                          { return rating == 2; });
+    ASSERT_EQUAL(testRating.size(), 2u);
+    ASSERT_EQUAL_HINT(testRating[0].id, doc_id_two, message);
+    ASSERT_EQUAL_HINT(testRating[1].id, doc_id_for, message);
+
+    vector<Document> testId = server.FindTopDocuments(contentTwo, [](int document_id, DocumentStatus status, int rating)
+                                                      { return document_id == 1; });
+    ASSERT_EQUAL(testId.size(), 1u);
+    ASSERT_EQUAL_HINT(testId[0].id, doc_id_one, message);
+}
+
 void TestSearchServer()
 {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
     RUN_TEST(TestMinusWord);
     RUN_TEST(TestMatchedDoc);
     RUN_TEST(TestRaitingCompute);
-    RUN_TEST(TestSortRelev);
+    RUN_TEST(TestRelevAndTestSort);
+    RUN_TEST(TestSearchWithDocStatus);
+    RUN_TEST(TestFilterWithPred);
 }
