@@ -22,14 +22,24 @@ void TestExcludeStopWordsFromAddedDocumentContent()
 
 void TestMinusWord()
 {
-    const int doc_id = 42;
-    const string contentMinus = "cat"s;
+    const int doc_id_one = 1;
+    const int doc_id_two = 2;
+    const int doc_id_tr = 3;
+    const string doc_1 = "cat"s;
+    const string doc_2 = "cat dog"s;
+    const string doc_3 = "dog"s;
     const vector<int> ratings = {1, 2, 3};
 
     SearchServer server;
-    server.AddDocument(doc_id, contentMinus, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_one, doc_1, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_two, doc_2, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(doc_id_tr, doc_3, DocumentStatus::ACTUAL, ratings);
+
+    string message = "Documents with minus words must be excluded in search results";
     ASSERT_EQUAL(server.FindTopDocuments("cat"s).empty(), false);
-    ASSERT_HINT(server.FindTopDocuments("dog -cat"s).empty(), "Documents with minus words must be excluded in search results");
+    vector<Document> test = server.FindTopDocuments("dog -cat"s);
+    ASSERT_EQUAL_HINT(test.size(), 1u, message);
+    ASSERT_EQUAL_HINT(test[0].id, doc_id_tr, message);
 }
 
 void TestMatchedDoc()
@@ -56,16 +66,16 @@ void TestRaitingCompute()
 {
     const string contentMinus = "cat dog bad"s;
     const vector<int> ratings = {1, 2, 3};
-    const vector<int> zero = {1, 1, 1};
-    const vector<int> one = {0};
+    const vector<int> one = {1, 1, 1};
+    const vector<int> zero = {0};
     const int doc_id_one = 1;
     const int doc_id_two = 5;
     const int doc_id_tr = 9;
 
     SearchServer server;
     server.AddDocument(doc_id_one, contentMinus, DocumentStatus::ACTUAL, ratings);
-    server.AddDocument(doc_id_two, contentMinus, DocumentStatus::ACTUAL, zero);
-    server.AddDocument(doc_id_tr, contentMinus, DocumentStatus::ACTUAL, one);
+    server.AddDocument(doc_id_two, contentMinus, DocumentStatus::ACTUAL, one);
+    server.AddDocument(doc_id_tr, contentMinus, DocumentStatus::ACTUAL, zero);
     string message = "Rating is incorrect";
     vector<Document> test = server.FindTopDocuments(contentMinus);
     ASSERT_EQUAL(test[0].id, doc_id_one);
