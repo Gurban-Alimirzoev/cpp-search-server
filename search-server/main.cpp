@@ -96,13 +96,9 @@ public:
     explicit SearchServer(const StringContainer &stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words))
     {
-        for (string stop_word : stop_words)
-        {
-            if (!none_of(stop_word.begin(), stop_word.end(), [](char c)
-                         { return c >= '\0' && c < ' '; }))
-            {
-                throw invalid_argument("Стоп слова содержат спецсимвол.");
-            }
+        if (!all_of(stop_words.begin(), stop_words.end(), [](const string &stop_word)
+                {return IsValidWord(stop_word);})) {
+            throw invalid_argument("Стоп слова содержат спецсимвол.");
         }
     }
 
@@ -122,8 +118,7 @@ public:
         {
             throw invalid_argument("Документ с данным id уже есть.");
         }
-        vector<string> words;
-        SplitIntoWordsNoStop(document, words);
+        vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
         for (const string &word : words)
         {
@@ -136,8 +131,7 @@ public:
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string &raw_query, DocumentPredicate document_predicate) const
     {
-        Query query;
-        ParseQuery(raw_query, query);
+        Query query = ParseQuery(raw_query);
         {
             auto matched_documents = FindAllDocuments(query, document_predicate);
 
@@ -150,8 +144,7 @@ public:
                      else
                      {
                          return lhs.relevance > rhs.relevance;
-                     }
-                 });
+                     } });
             if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT)
             {
                 matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
@@ -191,8 +184,7 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string &raw_query, int document_id) const
     {
-        Query query;
-        ParseQuery(raw_query, query);
+        Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string &word : query.plus_words)
         {
@@ -243,9 +235,8 @@ private:
                        { return c >= '\0' && c < ' '; });
     }
 
-    void SplitIntoWordsNoStop(const string &text, vector<string> &result) const
+    vector<string> SplitIntoWordsNoStop(const string &text) const
     {
-        result.clear();
         vector<string> words;
         for (const string &word : SplitIntoWords(text))
         {
@@ -258,7 +249,7 @@ private:
                 words.push_back(word);
             }
         }
-        result.swap(words);
+        return words;
     }
 
     static int ComputeAverageRating(const vector<int> &ratings)
@@ -282,28 +273,27 @@ private:
         bool is_stop;
     };
 
-    void ParseQueryWord(string text, QueryWord &result) const
+    QueryWord ParseQueryWord(string text) const
     {
-        result = {};
         bool is_minus = false;
         if (text[0] == '-')
         {
             is_minus = true;
             text = text.substr(1);
         }
+        if (text.empty())
+        {
+            throw invalid_argument("Отсутствует текст после символа «минус» в поисковом запросе.");
+        }
+        if (text.at(0) == '-')
+        {
+            throw invalid_argument("Запрос содержит более чем один минус перед словами, которых не должно быть в документе.");
+        }
         if (!IsValidWord(text))
         {
             throw invalid_argument("Запрос содержит спецсимвол.");
         }
-        if (text[0] == '-')
-        {
-            throw invalid_argument("Запрос содержит более чем один минус перед словами, которых не должно быть в документе.");
-        }
-        if (text.size() == 0)
-        {
-            throw invalid_argument("Отсутствует текст после символа «минус» в поисковом запросе.");
-        }
-        result = QueryWord{text, is_minus, IsStopWord(text)};
+        return {text, is_minus, IsStopWord(text)};
     }
 
     struct Query
@@ -312,32 +302,31 @@ private:
         set<string> minus_words;
     };
 
-    void ParseQuery(const string &text, Query &result) const
+    Query ParseQuery(const string &text) const
     {
         // Empty result by initializing it with default constructed Query
-        result = {};
-        QueryWord query_word;
+        Query query;
         for (const string &word : SplitIntoWords(text))
         {
-            ParseQueryWord(word, query_word);
+            const QueryWord query_word = ParseQueryWord(word);
 
             if (!query_word.is_stop)
             {
                 if (query_word.is_minus)
                 {
-                    result.minus_words.insert(query_word.data);
+                    query.minus_words.insert(query_word.data);
                 }
                 else
                 {
-                    result.plus_words.insert(query_word.data);
+                    query.plus_words.insert(query_word.data);
                 }
             }
         }
+        return query;
     }
 
     // Existence required
-    double
-    ComputeWordInverseDocumentFreq(const string &word) const
+    double ComputeWordInverseDocumentFreq(const string &word) const
     {
         return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
     }
