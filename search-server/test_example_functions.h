@@ -1,6 +1,21 @@
 #pragma once
 #include "search_server.h"
 
+template <typename MapS, typename MapF>
+void Print(std::ostream& out, const std::map<MapF, MapS>& container);
+
+template <typename Data>
+void Print(std::ostream& out, const Data& container);
+
+template <typename Element>
+std::ostream& operator<<(std::ostream& out, const std::vector<Element>& container);
+
+template <typename SetElement>
+std::ostream& operator<<(std::ostream& out, const std::set<SetElement>& container);
+
+template <typename MapS, typename MapF>
+std::ostream& operator<<(std::ostream& out, const std::map<MapF, MapS>& container);
+
 template <typename Test, typename TestName>
 void RunTestImpl(const Test &test, const TestName &func);
 #define RUN_TEST(func) RunTestImpl(func, #func)

@@ -4,18 +4,21 @@ using namespace std;
 RequestQueue::RequestQueue(const SearchServer &search_server) : searchServer(search_server)
     {
     }
+
 vector<Document> RequestQueue::AddFindRequest(const string &raw_query, DocumentStatus status)
 {
     const auto search_results = searchServer.FindTopDocuments(raw_query, status);
     AddRequest(search_results, raw_query);
     return search_results;
 }
+
 vector<Document> RequestQueue::AddFindRequest(const string &raw_query)
 {
     const auto search_results = searchServer.FindTopDocuments(raw_query);
     AddRequest(search_results, raw_query);
     return search_results;
 }
+
 int RequestQueue::GetNoResultRequests() const
 {
     return count_if(requests_.begin(), requests_.end(), [](QueryResult lhs)

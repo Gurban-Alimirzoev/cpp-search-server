@@ -77,6 +77,7 @@ public:
 private:
     std::vector<IteratorRange<Iterator>> pages_;
 };
+
 template <typename Container>
 auto Paginate(const Container &c, size_t page_size)
 {

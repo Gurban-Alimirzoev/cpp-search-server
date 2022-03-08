@@ -1,5 +1,3 @@
-#include <string>
-#include <iostream>
 #include "remove_duplicates.h"
 
 using namespace std;

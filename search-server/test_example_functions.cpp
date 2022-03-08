@@ -52,7 +52,6 @@ ostream &operator<<(ostream &out, const set<SetElement> &container)
     return out;
 }
 
-//template <typename MapF>
 template <typename MapS, typename MapF>
 ostream &operator<<(ostream &out, const map<MapF, MapS> &container)
 {
