@@ -6,11 +6,6 @@ SearchServer::SearchServer()
 {
 }
 
-SearchServer::SearchServer(const string &stop_words_text)
-    : SearchServer(SplitIntoWords(stop_words_text))
-{
-}
-
 void SearchServer::AddDocument(int document_id, const string &document, DocumentStatus status, const vector<int> &ratings)
 {
     if ((document_id < 0) || (documents_.count(document_id) > 0))

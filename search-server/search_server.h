@@ -30,7 +30,11 @@ public:
         }
     }
 
-    explicit SearchServer(const std::string &stop_words_text);
+    template <>
+    explicit SearchServer(const std::string &stop_words_text)
+    : SearchServer(SplitIntoWords(stop_words_text))
+    {
+    }
 
     void AddDocument(int document_id, const std::string &document, DocumentStatus status, const std::vector<int> &ratings);
 
