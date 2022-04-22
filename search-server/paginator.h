@@ -46,7 +46,7 @@ class Paginator
 {
 public:
     Paginator(Iterator begin, Iterator end, size_t page_size)
-    {   
+    {
         assert(end >= begin && page_size > 0);
         for (size_t left = distance(begin, end); left > 0;)
         {
