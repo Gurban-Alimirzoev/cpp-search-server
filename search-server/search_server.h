@@ -265,7 +265,7 @@ std::vector<Document> SearchServer::FindAllDocuments(std::execution::parallel_po
 			 {
 				 auto contain_minus = std::any_of(std::execution::par,
 												  minus_words.begin(), minus_words.end(),
-												  [&query, &word](const auto &minus_word)
+												  [&word](const auto &minus_word)
 												  {
 													  return minus_word == word;
 												  });
@@ -275,7 +275,7 @@ std::vector<Document> SearchServer::FindAllDocuments(std::execution::parallel_po
 					 const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
 					 std::for_each(std::execution::par,
 								   word_to_document_freqs_.at(std::string(word)).begin(), word_to_document_freqs_.at(std::string(word)).end(),
-								   [this, &document_to_relevance, &inverse_document_freq, &document_predicate, &query](const auto &doc_freq)
+								   [this, &document_to_relevance, &inverse_document_freq, &document_predicate](const auto &doc_freq)
 								   {
 									   const auto &document_data = documents_.at(doc_freq.first);
 									   if (document_predicate(doc_freq.first, document_data.status, document_data.rating))
@@ -292,7 +292,7 @@ std::vector<Document> SearchServer::FindAllDocuments(std::execution::parallel_po
 
 	std::for_each(std::execution::par,
 				  ord_map.begin(), ord_map.end(),
-				  [&matched_documents, this, &size, &document_predicate](const auto &map)
+				  [&matched_documents, this, &size](const auto &map)
 				  {
 					  int document_id = map.first;
 					  double relevance = map.second;
